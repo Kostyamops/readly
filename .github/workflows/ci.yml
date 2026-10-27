@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  test-milestone-1:
+  test-suite:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -28,7 +28,7 @@ jobs:
           mkdir -p ~/theos/sdks
           curl -fsSL https://github.com/theos/sdks/archive/master.tar.gz | tar -xz -C ~/theos/sdks --strip-components=1
 
-      - name: Run Milestone 1 TDD Test Suite
+      - name: Run All TDD Test Suites
         run: |
           export THEOS=~/theos
-          python3 -m unittest tests/test_milestone1.py
+          python3 -m unittest discover tests
