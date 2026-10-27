@@ -1,0 +1,33 @@
+name: RetroReader TDD CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-milestone-1:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools (ldid, dpkg)
+        run: |
+          brew install ldid dpkg
+
+      - name: Set up Theos and mock SDK
+        run: |
+          git clone --recursive https://github.com/theos/theos.git ~/theos
+          mkdir -p ~/theos/sdks/iPhoneOS9.3.sdk
+
+      - name: Run Milestone 1 TDD Test Suite
+        run: |
+          export THEOS=~/theos
+          python3 -m unittest tests/test_milestone1.py

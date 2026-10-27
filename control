@@ -1,0 +1,9 @@
+Package: com.retroread.app
+Name: RetroReader
+Depends: 
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Offline EPUB reader with instant word-tap translation bubble for iPad 2 (iOS 9.3.5)
+Maintainer: Konstantin Gritzkevich <kgritz@yandex.ru>
+Author: Konstantin Gritzkevich
+Section: Applications
