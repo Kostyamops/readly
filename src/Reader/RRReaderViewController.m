@@ -1,5 +1,6 @@
 #import "RRReaderViewController.h"
 #import "RRDictionaryService.h"
+#import "RRTranslationViewController.h"
 #import "Constants.h"
 
 @interface RRReaderViewController ()
@@ -180,7 +181,7 @@ shouldStartLoadWithRequest:(NSURLRequest *)request
     return YES;
 }
 
-#pragma mark - Перехват слова из URL
+#pragma mark - Перехват слова из URL и вызов всплывающего перевода
 
 - (void)handleWordTapURL:(NSURL *)url {
     NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
@@ -205,6 +206,34 @@ shouldStartLoadWithRequest:(NSURLRequest *)request
     
     CGRect wordRect = CGRectMake(x, y, w > 10 ? w : 40, h > 10 ? h : 20);
     NSLog(@"[RetroReader] Tapped word: '%@', rect: %@", word, NSStringFromCGRect(wordRect));
+    
+    // Поиск слова в локальной SQLite базе с лемматизацией
+    RRWordEntry *entry = [[RRDictionaryService sharedService] lookupWord:word];
+    if (!entry) {
+        entry = [[RRWordEntry alloc] initWithWord:word
+                                     transcription:@""
+                                      partOfSpeech:@""
+                                       translation:@"Перевод не найден в локальном словаре."];
+    }
+    
+    // Инициализация и показ компактного бабла перевода
+    RRTranslationViewController *popoverVC = [[RRTranslationViewController alloc] initWithWordEntry:entry];
+    popoverVC.modalPresentationStyle = UIModalPresentationPopover;
+    
+    UIPopoverPresentationController *popPresenter = popoverVC.popoverPresentationController;
+    popPresenter.delegate = self;
+    popPresenter.sourceView = self.webView;
+    popPresenter.sourceRect = wordRect;
+    popPresenter.permittedArrowDirections = UIPopoverArrowDirectionUp | UIPopoverArrowDirectionDown;
+    
+    [self presentViewController:popoverVC animated:YES completion:nil];
+}
+
+#pragma mark - UIPopoverPresentationControllerDelegate
+
+- (UIModalPresentationStyle)adaptivePresentationStyleForPresentationController:(UIPresentationController *)controller {
+    // Предотвращаем разворачивание попапа на весь экран iPad
+    return UIModalPresentationNone;
 }
 
 #pragma mark - Пагинация и свайпы
