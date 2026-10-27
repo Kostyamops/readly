@@ -31,8 +31,16 @@ body {
     line-height: 1.6;
     text-align: justify;
     -webkit-touch-callout: none;
-    -webkit-user-select: none;
+    -webkit-user-select: text;
     cursor: pointer;
+}
+
+::selection {
+    background: transparent;
+}
+
+::-webkit-selection {
+    background: transparent;
 }
 
 h1, h2, h3 {

@@ -2,7 +2,7 @@
  * RetroReader JavaScript Bridge для UIWebView на iOS 9.3.5
  * 1. Отслеживает тапы по словам через caretRangeFromPoint.
  * 2. Вычисляет координаты слова на экране iPad.
- * 3. Отправляет событие в Objective-C через кастомный URI-схем reader-bridge://wordTap.
+ * 3. Отправляет событие в Objective-C через кастомный URI-схем reader-bridge://wordTap и window.RRGetWordAt.
  * 4. Управляет горизонтальной пагинацией страниц.
  */
 
@@ -24,15 +24,28 @@
         }, 150);
     }
 
-    function handleTapAt(clientX, clientY) {
-        if (!document.caretRangeFromPoint) return;
+    function isWordChar(c) {
+        return /[a-zA-Z0-9\u0400-\u04FF\u00C0-\u017F\'\u2019]/.test(c);
+    }
+
+    function getWordAt(clientX, clientY) {
+        if (!document.caretRangeFromPoint) return "";
+
         var range = document.caretRangeFromPoint(clientX, clientY);
-        if (!range) return;
+        // Небольшой jitter fallback (±5px), если тап пришелся между буквами или строками
+        if (!range) {
+            var deltas = [[0, -5], [0, 5], [-5, 0], [5, 0]];
+            for (var i = 0; i < deltas.length; i++) {
+                range = document.caretRangeFromPoint(clientX + deltas[i][0], clientY + deltas[i][1]);
+                if (range) break;
+            }
+        }
+        if (!range) return "";
 
         var cleanWord = "";
         var rect = null;
 
-        // Попытка использовать нативный WebKit expand('word')
+        // 1. Попытка использовать нативный WebKit expand('word')
         var expandedNative = false;
         if (typeof range.expand === 'function') {
             try {
@@ -46,7 +59,7 @@
             } catch(e) {}
         }
 
-        // Надежный fallback по границам текстового узла DOM
+        // 2. Надежный fallback по границам текстового узла DOM
         if (!expandedNative) {
             var node = range.startContainer;
             var offset = range.startOffset;
@@ -57,15 +70,12 @@
                     offset = 0;
                 }
             }
-            if (!node || node.nodeType !== 3 || !node.textContent) return;
+            if (!node || node.nodeType !== 3 || !node.textContent) return "";
 
             var text = node.textContent;
-            var isWordChar = function(c) {
-                return /[a-zA-Z0-9\u0400-\u04FF\u00C0-\u017F\']/.test(c);
-            };
+            var start = Math.min(offset, text.length);
+            var end = Math.min(offset, text.length);
 
-            var start = offset;
-            var end = offset;
             while (start > 0 && isWordChar(text.charAt(start - 1))) {
                 start--;
             }
@@ -74,7 +84,7 @@
             }
 
             cleanWord = text.substring(start, end).trim().replace(PUNCT_REGEX, "");
-            if (cleanWord.length === 0) return;
+            if (cleanWord.length === 0) return "";
 
             var wordRange = document.createRange();
             wordRange.setStart(node, start);
@@ -82,23 +92,50 @@
             rect = wordRange.getBoundingClientRect();
         }
 
-        if (!cleanWord || cleanWord.length === 0) return;
+        // Немедленно снимаем выделение, чтобы не возникало синих маркеров
+        if (window.getSelection) {
+            try {
+                window.getSelection().removeAllRanges();
+            } catch(e) {}
+        }
+
+        if (!cleanWord || cleanWord.length === 0) return "";
+
         var x = (rect && rect.width > 0) ? Math.round(rect.left) : clientX;
         var y = (rect && rect.height > 0) ? Math.round(rect.top) : clientY;
         var w = (rect && rect.width > 0) ? Math.round(rect.width) : 40;
         var h = (rect && rect.height > 0) ? Math.round(rect.height) : 20;
 
-        var bridgeUrl = 'reader-bridge://wordTap?' +
-                        'word=' + encodeURIComponent(cleanWord) +
-                        '&x=' + x +
-                        '&y=' + y +
-                        '&w=' + w +
-                        '&h=' + h;
-
-        sendBridgeMessage(bridgeUrl);
+        return JSON.stringify({
+            word: cleanWord,
+            x: x,
+            y: y,
+            w: w,
+            h: h
+        });
     }
 
-    // Экспорт для нативного вызова из Objective-C (UITapGestureRecognizer)
+    function handleTapAt(clientX, clientY) {
+        var jsonStr = getWordAt(clientX, clientY);
+        if (!jsonStr) return;
+
+        try {
+            var data = JSON.parse(jsonStr);
+            if (!data.word) return;
+
+            var bridgeUrl = 'reader-bridge://wordTap?' +
+                            'word=' + encodeURIComponent(data.word) +
+                            '&x=' + data.x +
+                            '&y=' + data.y +
+                            '&w=' + data.w +
+                            '&h=' + data.h;
+
+            sendBridgeMessage(bridgeUrl);
+        } catch(e) {}
+    }
+
+    // Экспорт для нативного вызова из Objective-C (UITapGestureRecognizer и stringByEvaluatingJavaScriptFromString)
+    window.RRGetWordAt = getWordAt;
     window.RRHandleTapAt = handleTapAt;
 
     // Слушатели событий в DOM

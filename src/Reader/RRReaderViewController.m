@@ -13,6 +13,8 @@
 @property (nonatomic, copy) NSString *injectedCSS;
 @property (nonatomic, copy) NSString *injectedJS;
 @property (nonatomic, assign) BOOL isBarsVisible;
+@property (nonatomic, copy) NSString *lastShownWord;
+@property (nonatomic, assign) NSTimeInterval lastShownTimestamp;
 
 @end
 
@@ -76,6 +78,7 @@
     // 3.1. Жест одиночного тапа для быстрого вызова перевода слова
     UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleSingleTap:)];
     singleTap.numberOfTapsRequired = 1;
+    singleTap.cancelsTouchesInView = NO;
     singleTap.delegate = self;
     [self.webView addGestureRecognizer:singleTap];
     
@@ -183,8 +186,8 @@
 shouldStartLoadWithRequest:(NSURLRequest *)request
  navigationType:(UIWebViewNavigationType)navigationType {
     NSURL *url = request.URL;
-    if ([url.scheme isEqualToString:kRRReaderBridgeScheme]) {
-        if ([url.host isEqualToString:kRRReaderActionWordTap]) {
+    if ([url.scheme caseInsensitiveCompare:kRRReaderBridgeScheme] == NSOrderedSame) {
+        if ([url.host caseInsensitiveCompare:kRRReaderActionWordTap] == NSOrderedSame) {
             [self handleWordTapURL:url];
             return NO;
         }
@@ -192,18 +195,89 @@ shouldStartLoadWithRequest:(NSURLRequest *)request
     return YES;
 }
 
-#pragma mark - Перехват слова из URL и вызов всплывающего перевода
+#pragma mark - Перехват слова и вызов всплывающего перевода
 
 - (void)handleSingleTap:(UITapGestureRecognizer *)gesture {
     if (gesture.state == UIGestureRecognizerStateEnded) {
         CGPoint pt = [gesture locationInView:self.webView];
-        NSString *js = [NSString stringWithFormat:@"if (window.RRHandleTapAt) { window.RRHandleTapAt(%f, %f); }", pt.x, pt.y];
-        [self.webView stringByEvaluatingJavaScriptFromString:js];
+        NSLog(@"[RetroReader] Native tap gesture at: (%f, %f)", pt.x, pt.y);
+        
+        // Синхронный вызов JS для мгновенного определения слова под пальцем
+        NSString *js = [NSString stringWithFormat:@"window.RRGetWordAt ? window.RRGetWordAt(%f, %f) : '';", pt.x, pt.y];
+        NSString *resultJson = [self.webView stringByEvaluatingJavaScriptFromString:js];
+        
+        NSLog(@"[RetroReader] Tap JS result: '%@'", resultJson);
+        
+        if (resultJson && resultJson.length > 2) {
+            NSData *data = [resultJson dataUsingEncoding:NSUTF8StringEncoding];
+            NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([dict isKindOfClass:[NSDictionary class]]) {
+                NSString *word = dict[@"word"];
+                CGFloat x = [dict[@"x"] doubleValue];
+                CGFloat y = [dict[@"y"] doubleValue];
+                CGFloat w = [dict[@"w"] doubleValue];
+                CGFloat h = [dict[@"h"] doubleValue];
+                
+                if (word.length > 0) {
+                    CGRect rect = CGRectMake(x, y, w, h);
+                    [self showPopoverForWord:word rect:rect];
+                    return;
+                }
+            }
+        }
     }
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     return YES;
+}
+
+- (void)showPopoverForWord:(NSString *)word rect:(CGRect)wordRect {
+    if (!word || word.length == 0) return;
+    
+    NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+    if ([word isEqualToString:self.lastShownWord] && (now - self.lastShownTimestamp < 0.4)) {
+        return; // Дебаунс дубликатов
+    }
+    self.lastShownWord = word;
+    self.lastShownTimestamp = now;
+    
+    // Коррекция и защита координат для стрелочки попапа
+    if (wordRect.size.width < 10) wordRect.size.width = 40;
+    if (wordRect.size.height < 10) wordRect.size.height = 20;
+    if (CGRectIsEmpty(wordRect) || CGRectIsNull(wordRect) || wordRect.origin.x < 0 || wordRect.origin.y < 0) {
+        CGFloat screenW = self.view.bounds.size.width > 0 ? self.view.bounds.size.width : kRRIpadScreenWidth;
+        CGFloat screenH = self.view.bounds.size.height > 0 ? self.view.bounds.size.height : kRRIpadScreenHeight;
+        wordRect = CGRectMake(screenW / 2.0 - 20, screenH / 2.0 - 10, 40, 20);
+    }
+    
+    NSLog(@"[RetroReader] Presenting translation for: '%@', rect: %@", word, NSStringFromCGRect(wordRect));
+    
+    // Поиск слова в локальной SQLite базе с лемматизацией
+    RRWordEntry *entry = [[RRDictionaryService sharedService] lookupWord:word];
+    if (!entry) {
+        entry = [[RRWordEntry alloc] initWithWord:word
+                                     transcription:@""
+                                      partOfSpeech:@""
+                                       translation:@"Перевод не найден в локальном словаре."];
+    }
+    
+    // Если уже открыт попап перевода, закрываем предыдущий перед открытием нового
+    if (self.presentedViewController) {
+        [self.presentedViewController dismissViewControllerAnimated:NO completion:nil];
+    }
+    
+    // Инициализация и показ компактного бабла перевода
+    RRTranslationViewController *popoverVC = [[RRTranslationViewController alloc] initWithWordEntry:entry];
+    popoverVC.modalPresentationStyle = UIModalPresentationPopover;
+    
+    UIPopoverPresentationController *popPresenter = popoverVC.popoverPresentationController;
+    popPresenter.delegate = self;
+    popPresenter.sourceView = self.webView;
+    popPresenter.sourceRect = wordRect;
+    popPresenter.permittedArrowDirections = UIPopoverArrowDirectionUp | UIPopoverArrowDirectionDown;
+    
+    [self presentViewController:popoverVC animated:YES completion:nil];
 }
 
 - (void)handleWordTapURL:(NSURL *)url {
@@ -226,45 +300,10 @@ shouldStartLoadWithRequest:(NSURLRequest *)request
             }
         }
         
-        if (!word || word.length == 0) return;
-        
-        // Коррекция и защита координат для стрелочки попапа
-        if (w < 10) w = 40;
-        if (h < 10) h = 20;
-        CGRect wordRect = CGRectMake(x, y, w, h);
-        if (CGRectIsEmpty(wordRect) || CGRectIsNull(wordRect) || wordRect.origin.x < 0 || wordRect.origin.y < 0) {
-            CGFloat screenW = self.view.bounds.size.width > 0 ? self.view.bounds.size.width : kRRIpadScreenWidth;
-            CGFloat screenH = self.view.bounds.size.height > 0 ? self.view.bounds.size.height : kRRIpadScreenHeight;
-            wordRect = CGRectMake(screenW / 2.0 - 20, screenH / 2.0 - 10, 40, 20);
+        if (word.length > 0) {
+            CGRect wordRect = CGRectMake(x, y, w, h);
+            [self showPopoverForWord:word rect:wordRect];
         }
-        
-        NSLog(@"[RetroReader] Tapped word: '%@', rect: %@", word, NSStringFromCGRect(wordRect));
-        
-        // Поиск слова в локальной SQLite базе с лемматизацией
-        RRWordEntry *entry = [[RRDictionaryService sharedService] lookupWord:word];
-        if (!entry) {
-            entry = [[RRWordEntry alloc] initWithWord:word
-                                         transcription:@""
-                                          partOfSpeech:@""
-                                           translation:@"Перевод не найден в локальном словаре."];
-        }
-        
-        // Если уже открыт попап перевода, закрываем предыдущий перед открытием нового
-        if (self.presentedViewController) {
-            [self.presentedViewController dismissViewControllerAnimated:NO completion:nil];
-        }
-        
-        // Инициализация и показ компактного бабла перевода
-        RRTranslationViewController *popoverVC = [[RRTranslationViewController alloc] initWithWordEntry:entry];
-        popoverVC.modalPresentationStyle = UIModalPresentationPopover;
-        
-        UIPopoverPresentationController *popPresenter = popoverVC.popoverPresentationController;
-        popPresenter.delegate = self;
-        popPresenter.sourceView = self.webView;
-        popPresenter.sourceRect = wordRect;
-        popPresenter.permittedArrowDirections = UIPopoverArrowDirectionUp | UIPopoverArrowDirectionDown;
-        
-        [self presentViewController:popoverVC animated:YES completion:nil];
     });
 }
 
