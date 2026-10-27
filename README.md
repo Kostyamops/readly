@@ -4,42 +4,51 @@ Offline EPUB reader with instant word-tap translation bubble for iPad 2 (Apple A
 
 ---
 
-## О проекте
-**RetroReader** — это легковесная специализированная читалка электронных книг (EPUB) на английском языке со встроенной офлайн-базой перевода на русский язык. Разработана с учетом жестких ограничений по оперативной памяти (512 МБ) старых 32-битных устройств Apple.
-
-### Ключевые возможности:
-- **Постраничное чтение EPUB:** адаптивная верстка книжной страницы через CSS Multi-Column без тяжелых сторонних читалок.
-- **Мгновенный перевод по тапу:** JS-мост перехватывает клик по любому слову, определяет его точные координаты на экране и показывает всплывающий бабл со стрелочкой (`UIPopoverPresentationController`).
-- **Умная морфология:** встроенный системный лемматизатор `NSLinguisticTagger` автоматически находит начальные формы слов (*running* -> *run*, *knives* -> *knife*).
-- **100% Офлайн:** база словаря на SQLite с индексами, нулевое потребление памяти в фоне, время поиска слова < 10 мс.
+## Статус репозитория
+> **Репозиторий подготовлен к командной разработке с нуля.**  
+> В репозитории создана эталонная файловая структура папок без кода и заглушек.  
+> Все этапы разработки декомпозированы на **78 атомарных задач**, каждая из которых готова к переносу в GitHub Issues.
 
 ---
 
-## Документация и ТЗ
-Все задачи декомпозированы в формате рабочих задач с подробными требованиями (вход, выход, методы, структуры):
-👉 **[Полная спецификация задач (TASKS_SPEC.md)](file:///Users/admin/Documents/antigravity/wonderful-raman/docs/TASKS_SPEC.md)**
+## Архитектура папок проекта
+
+```text
+readly/
+├── docs/
+│   ├── ATOMIC_TASKS.md          # 78 детальных атомарных задач для GitHub Issues
+│   └── TASKS_SPEC.md            # Сводная спецификация архитектуры
+├── src/
+│   ├── Core/                    # AppDelegate, main.m, Constants
+│   ├── Dictionary/              # RRDictionaryService, RRWordEntry
+│   ├── Epub/                    # RRZipExtractor, RREpubParser, модели книг
+│   ├── Reader/                  # RRReaderViewController
+│   │   └── Assets/              # reader_style.css, reader_bridge.js
+│   └── Popover/                 # RRTranslationViewController
+├── resources/                   # dictionary.sqlite, sample.epub, Info.plist
+├── tests/                       # Unit-тесты
+└── tools/
+    ├── upload_tasks_to_github.py # Скрипт автоматического создания всех 78 задач в GitHub Issues
+    └── dict_builder/            # Скрипты подготовки словарной базы
+```
 
 ---
 
-## Быстрый старт (Сборка и запуск)
+## Реестр задач и ТЗ
+- 👉 **[78 Атомарных задач для GitHub Issues (ATOMIC_TASKS.md)](file:///Users/admin/Documents/antigravity/wonderful-raman/docs/ATOMIC_TASKS.md)**
+- 👉 **[Сводная спецификация проекта (TASKS_SPEC.md)](file:///Users/admin/Documents/antigravity/wonderful-raman/docs/TASKS_SPEC.md)**
 
-### Требования к хосту (Mac M4):
-- macOS Sonoma / Sequoia (Apple Silicon M4)
-- Консольный тулчейн Theos: `export THEOS=~/theos`
-- Заголовочный SDK с поддержкой `armv7` (`iPhoneOS9.3.sdk` или `iPhoneOS10.3.sdk` в `$THEOS/sdks/`)
-- Утилиты: `brew install ldid dpkg`
+---
 
-### Команды разработки:
+## Автоматическая загрузка задач в GitHub Issues
+
+В репозитории подготовлен скрипт `tools/upload_tasks_to_github.py`.  
+Для загрузки всех 78 задач с тегами выполните:
+
 ```bash
-# 1. Генерация базы словаря
-python3 tools/dict_builder/build_dict.py
+# Предварительная проверка (сухой прогон):
+python3 tools/upload_tasks_to_github.py --dry-run
 
-# 2. Сборка проекта
-make
-
-# 3. Сборка deb-пакета
-make package
-
-# 4. Сборка и деплой на iPad по Wi-Fi (требуется джейлбрейк + OpenSSH)
-make install
+# Реальная отправка в GitHub Issues:
+GITHUB_TOKEN=ghp_ваш_токен python3 tools/upload_tasks_to_github.py <ЛОГИН>/<ИМЯ_РЕПОЗИТОРИЯ>
 ```

@@ -1,9 +1,0 @@
-Package: com.retroread.app
-Name: RetroReader
-Depends: 
-Version: 1.0.0
-Architecture: iphoneos-arm
-Description: Lightweight EPUB reader with instant word translation bubble for iPad 2 (iOS 9.3.5)
-Maintainer: RetroRead Team
-Author: RetroRead Team
-Section: Applications

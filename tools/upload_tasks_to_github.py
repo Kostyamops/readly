@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Скрипт автоматического создания GitHub Issues из docs/TASKS_SPEC.md
-Использует GitHub REST API (требуется GITHUB_TOKEN или авторизованный gh).
+Скрипт автоматического создания GitHub Issues из docs/ATOMIC_TASKS.md
+Каждый атомарный подпункт создает отдельный Issue в репозитории с соответствующими тегами и описанием.
 """
 
 import os
@@ -13,25 +13,42 @@ import urllib.error
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "../"))
-SPEC_FILE = os.path.join(PROJECT_ROOT, "docs", "TASKS_SPEC.md")
+ATOMIC_TASKS_FILE = os.path.join(PROJECT_ROOT, "docs", "ATOMIC_TASKS.md")
 
-def parse_tasks(spec_path):
-    with open(spec_path, "r", encoding="utf-8") as f:
+def parse_atomic_tasks(file_path):
+    if not os.path.exists(file_path):
+        print(f"[-] Файл не найден: {file_path}")
+        return []
+
+    with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Ищем блоки задач вида: ### [TASK-X.X] Название задачи ...
-    pattern = r"### \[(TASK-\d+\.\d+)\] (.*?)\n(.*?)(?=(?:\n### \[TASK-|\Z))"
+    # Поиск блоков вида: ### [M*-TASK-*] Название задачи
+    pattern = r"### \[(M\d+-TASK-[^\]]+)\] (.*?)\n(.*?)(?=(?:\n### \[M\d+-TASK-|\Z))"
     matches = re.findall(pattern, content, re.DOTALL)
 
     tasks = []
-    for task_id, title, body in matches:
-        full_title = f"[{task_id}] {title.strip()}"
-        clean_body = body.strip()
+    for task_id, title, raw_body in matches:
+        body = raw_body.strip()
+        
+        # Извлекаем лейблы из строки - **Labels:** `...`, `...`
+        labels = []
+        labels_match = re.search(r"-\s+\*\*Labels:\*\*\s*(.*)", body)
+        if labels_match:
+            raw_labels = labels_match.group(1)
+            # Находим слова в обратных кавычках или через запятую
+            extracted = re.findall(r"`([^`]+)`", raw_labels)
+            if not extracted:
+                extracted = [lbl.strip() for lbl in raw_labels.split(",") if lbl.strip()]
+            labels = extracted
+
         tasks.append({
             "id": task_id,
-            "title": full_title,
-            "body": clean_body
+            "title": f"[{task_id}] {title.strip()}",
+            "body": body,
+            "labels": labels
         })
+
     return tasks
 
 def create_issue(repo, token, title, body, labels=None):
@@ -61,21 +78,19 @@ def create_issue(repo, token, title, body, labels=None):
         return None
 
 def main():
-    if not os.path.exists(SPEC_FILE):
-        print(f"[-] Файл спецификации не найден: {SPEC_FILE}")
-        sys.exit(1)
-
     dry_run = "--dry-run" in sys.argv
     args = [a for a in sys.argv[1:] if a != "--dry-run"]
 
-    print(f"[*] Чтение задач из {SPEC_FILE}...")
-    tasks = parse_tasks(SPEC_FILE)
-    print(f"[+] Успешно распознано {len(tasks)} задач:")
-    for t in tasks:
-        print(f"    - {t['title']}")
+    print(f"[*] Чтение атомарных задач из {ATOMIC_TASKS_FILE}...")
+    tasks = parse_atomic_tasks(ATOMIC_TASKS_FILE)
+    print(f"[+] Распознано атомарных задач: {len(tasks)}\n")
+
+    for i, t in enumerate(tasks, start=1):
+        labels_str = ", ".join(t["labels"]) if t["labels"] else "без лейблов"
+        print(f"{i:2d}. {t['title']} (Лейблы: {labels_str})")
 
     if dry_run:
-        print("\n[DRY RUN] Проверка парсера завершена успешно. Реальные запросы не отправлялись.")
+        print("\n[DRY RUN] Проверка парсера завершена. Все подпункты готовы к отправке в GitHub Issues.")
         return
 
     repo = os.environ.get("GITHUB_REPOSITORY")
@@ -96,32 +111,20 @@ def main():
             token = args[1]
         else:
             print("\n[-] Ошибка: Не задан токен доступа к GitHub.")
-            print("Создайте токен: GitHub -> Settings -> Developer Settings -> Personal access tokens (classic) с галочкой 'repo'.")
+            print("Создайте токен: GitHub -> Settings -> Developer Settings -> Personal access tokens (classic) с правами 'repo'.")
             sys.exit(1)
 
-    print(f"\n[*] Начинаем отправку в {repo}...")
+    print(f"\n[*] Начинаем отправку всех {len(tasks)} атомарных задач в GitHub Issues репозитория {repo}...")
+    created_count = 0
     for t in tasks:
-        labels = ["ios9", "ipad2"]
-        if "TASK-1" in t['id']:
-            labels.append("infra")
-        elif "TASK-2" in t['id']:
-            labels.append("dictionary")
-        elif "TASK-3" in t['id']:
-            labels.append("epub")
-        elif "TASK-4" in t['id']:
-            labels.append("reader")
-        elif "TASK-5" in t['id']:
-            labels.append("ui")
-        elif "TASK-6" in t['id']:
-            labels.append("release")
-
-        issue_url = create_issue(repo, token, t['title'], t['body'], labels)
+        issue_url = create_issue(repo, token, t['title'], t['body'], t['labels'])
         if issue_url:
             print(f"    [OK] Создано: {issue_url}")
+            created_count += 1
         else:
             print(f"    [FAIL] Не удалось создать {t['id']}")
 
-    print("\n[OK] Все задачи успешно созданы в GitHub Issues!")
+    print(f"\n[OK] Завершено! Успешно создано {created_count} из {len(tasks)} задач в GitHub Issues.")
 
 if __name__ == "__main__":
     main()
