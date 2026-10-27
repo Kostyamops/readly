@@ -1,42 +1,69 @@
 #import "AppDelegate.h"
-#import <sys/utsname.h>
+#import "RRDictionaryService.h"
+#import "RREpubParser.h"
+#import "RRReaderViewController.h"
+
+@interface AppDelegate ()
+
+@property (nonatomic, strong) RRReaderViewController *readerViewController;
+
+@end
 
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     self.window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-    self.window.backgroundColor = [UIColor whiteColor];
+    self.window.backgroundColor = [UIColor colorWithRed:0.97 green:0.96 blue:0.93 alpha:1.0];
 
-    // Smoke Test экран для подтверждения успешного запуска
-    UIViewController *rootVC = [[UIViewController alloc] init];
-    rootVC.view.backgroundColor = [UIColor colorWithRed:0.96 green:0.96 blue:0.94 alpha:1.0];
+    // 1. Инициализация и открытие базы словаря SQLite (SQLITE_OPEN_READONLY)
+    NSString *dictPath = [[NSBundle mainBundle] pathForResource:@"dictionary" ofType:@"sqlite"];
+    if (dictPath) {
+        NSError *dictError = nil;
+        BOOL opened = [[RRDictionaryService sharedService] openDatabaseWithPath:dictPath error:&dictError];
+        if (opened) {
+            NSLog(@"[RetroReader] Dictionary database opened successfully from: %@", dictPath);
+        } else {
+            NSLog(@"[RetroReader] Failed to open dictionary database: %@", dictError);
+        }
+    } else {
+        NSLog(@"[RetroReader] Warning: dictionary.sqlite not found in bundle");
+    }
 
-    UILabel *lblTitle = [[UILabel alloc] initWithFrame:CGRectMake(40, 200, rootVC.view.bounds.size.width - 80, 50)];
-    lblTitle.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    lblTitle.font = [UIFont boldSystemFontOfSize:28.0];
-    lblTitle.textAlignment = NSTextAlignmentCenter;
-    lblTitle.textColor = [UIColor colorWithRed:0.1 green:0.1 blue:0.12 alpha:1.0];
-    lblTitle.text = @"RetroReader Smoke Test";
-    [rootVC.view addSubview:lblTitle];
+    // 2. Распаковка и парсинг встроенной книги sample.epub
+    NSString *epubPath = [[NSBundle mainBundle] pathForResource:@"sample" ofType:@"epub"];
+    RRBookModel *book = nil;
+    if (epubPath) {
+        NSError *epubError = nil;
+        book = [RREpubParser parseEpubAtPath:epubPath error:&epubError];
+        if (book) {
+            NSLog(@"[RetroReader] Book '%@' loaded with %ld chapters", book.title, (long)book.chapters.count);
+        } else {
+            NSLog(@"[RetroReader] Failed to parse EPUB: %@", epubError);
+        }
+    }
 
-    // Вывод системной информации iPad
-    struct utsname systemInfo;
-    uname(&systemInfo);
-    NSString *deviceModel = [NSString stringWithCString:systemInfo.machine encoding:NSUTF8StringEncoding];
-
-    UILabel *lblInfo = [[UILabel alloc] initWithFrame:CGRectMake(40, 270, rootVC.view.bounds.size.width - 80, 40)];
-    lblInfo.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    lblInfo.font = [UIFont systemFontOfSize:18.0];
-    lblInfo.textAlignment = NSTextAlignmentCenter;
-    lblInfo.textColor = [UIColor colorWithWhite:0.4 alpha:1.0];
-    lblInfo.text = [NSString stringWithFormat:@"Device: %@ | iOS: %@", deviceModel, [[UIDevice currentDevice] systemVersion]];
-    [rootVC.view addSubview:lblInfo];
-
-    self.window.rootViewController = rootVC;
+    // 3. Создание читалки и установка в rootViewController
+    self.readerViewController = [[RRReaderViewController alloc] initWithBook:book];
+    self.window.rootViewController = self.readerViewController;
     [self.window makeKeyAndVisible];
 
-    NSLog(@"[RetroReader] Smoke Test запущен успешно на устройстве %@ (iOS %@)", deviceModel, [[UIDevice currentDevice] systemVersion]);
     return YES;
+}
+
+- (void)applicationDidEnterBackground:(UIApplication *)application {
+    // Сброс кэша при сворачивании приложения для предотвращения Jetsam выгрузки на iPad 2 (512 MB RAM)
+    [[NSURLCache sharedURLCache] removeAllCachedResponses];
+    NSLog(@"[RetroReader] Cleared NSURLCache on applicationDidEnterBackground");
+}
+
+- (void)applicationDidReceiveMemoryWarning:(UIApplication *)application {
+    // Агрессивный сброс кэша при нехватке оперативной памяти
+    [[NSURLCache sharedURLCache] removeAllCachedResponses];
+    NSLog(@"[RetroReader] Cleared NSURLCache on applicationDidReceiveMemoryWarning");
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application {
+    [[RRDictionaryService sharedService] closeDatabase];
 }
 
 @end

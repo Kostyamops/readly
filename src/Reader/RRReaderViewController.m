@@ -118,6 +118,9 @@
     self.currentChapterIndex = chapterIndex;
     self.currentPageIndex = 0;
     
+    // Очистка предыдущего DOM содержимого для минимизации расхода памяти WebKit на iPad 2
+    [self.webView stringByEvaluatingJavaScriptFromString:@"if (document.body) { document.body.innerHTML = ''; }"];
+    
     RRChapterModel *chapter = self.book.chapters[chapterIndex];
     NSString *htmlPath = chapter.absoluteHtmlPath;
     

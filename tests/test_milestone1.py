@@ -150,6 +150,10 @@ class TestMilestone1(unittest.TestCase):
             "-target", "armv7-apple-ios9.3",
             "-isysroot", sdk_path,
             "-I", os.path.join(PROJECT_ROOT, "src", "Core"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Dictionary"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Epub"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Reader"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Popover"),
             app_del_m
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
