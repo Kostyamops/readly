@@ -138,17 +138,10 @@
     window.RRGetWordAt = getWordAt;
     window.RRHandleTapAt = handleTapAt;
 
-    // Слушатели событий в DOM
-    document.addEventListener('touchend', function(e) {
-        if (e.changedTouches && e.changedTouches.length > 0) {
-            var t = e.changedTouches[0];
-            handleTapAt(t.clientX, t.clientY);
-        }
-    }, false);
-
-    document.addEventListener('click', function(e) {
-        handleTapAt(e.clientX, e.clientY);
-    }, false);
+    // Автоматические слушатели touchend/click в DOM отключены в пользу нативного UITapGestureRecognizer
+    // в RRReaderViewController, который мгновенно вызывает window.RRGetWordAt(x, y) без задержек WebKit
+    // и без двойного срабатывания синтетического click (~350ms).
+    // window.RRHandleTapAt и reader-bridge://wordTap сохранены для прямого вызова.
 
     window.RRGetTotalPages = function() {
         var container = document.getElementById('book-container') || document.body;

@@ -49,6 +49,9 @@ class TestMilestone5(unittest.TestCase):
         # UITextView non-editable
         self.assertIn("editable = NO", content)
         self.assertIn("selectable = NO", content)
+        # Dismiss tap gesture recognizer
+        self.assertIn("handleDismissTap:", content)
+        self.assertIn("dismissViewControllerAnimated", content)
 
     def test_04_reader_popover_presentation_binding(self):
         """[M5-TASK-5.1.2.1 - 5.1.2.3] Verify modalPresentationStyle, sourceView, sourceRect, permittedArrowDirections"""

@@ -63,6 +63,19 @@
     self.txtTranslation.showsVerticalScrollIndicator = YES;
     self.txtTranslation.text = self.wordEntry.translation ?: @"Перевод не найден";
     [self.view addSubview:self.txtTranslation];
+    
+    // 5. Закрытие бабла по тапу на сам бабл (максимально простое взаимодействие)
+    UITapGestureRecognizer *dismissTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDismissTap:)];
+    dismissTap.numberOfTapsRequired = 1;
+    [self.view addGestureRecognizer:dismissTap];
+    
+    UITapGestureRecognizer *textDismissTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleDismissTap:)];
+    textDismissTap.numberOfTapsRequired = 1;
+    [self.txtTranslation addGestureRecognizer:textDismissTap];
+}
+
+- (void)handleDismissTap:(UITapGestureRecognizer *)gesture {
+    [self dismissViewControllerAnimated:YES completion:nil];
 }
 
 @end

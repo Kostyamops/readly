@@ -199,6 +199,12 @@ shouldStartLoadWithRequest:(NSURLRequest *)request
 
 - (void)handleSingleTap:(UITapGestureRecognizer *)gesture {
     if (gesture.state == UIGestureRecognizerStateEnded) {
+        // Если всплывающее окно перевода уже открыто, повторный тап закрывает его
+        if (self.presentedViewController) {
+            [self.presentedViewController dismissViewControllerAnimated:YES completion:nil];
+            return;
+        }
+        
         CGPoint pt = [gesture locationInView:self.webView];
         NSLog(@"[RetroReader] Native tap gesture at: (%f, %f)", pt.x, pt.y);
         
@@ -236,9 +242,20 @@ shouldStartLoadWithRequest:(NSURLRequest *)request
     if (!word || word.length == 0) return;
     
     NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
-    if ([word isEqualToString:self.lastShownWord] && (now - self.lastShownTimestamp < 0.4)) {
-        return; // Дебаунс дубликатов
+    if ([word isEqualToString:self.lastShownWord] && (now - self.lastShownTimestamp < 0.8)) {
+        return; // Дебаунс повторных событий одного и того же слова
     }
+    
+    if (self.presentedViewController) {
+        if ([self.presentedViewController isKindOfClass:[RRTranslationViewController class]]) {
+            RRTranslationViewController *current = (RRTranslationViewController *)self.presentedViewController;
+            if ([current.wordEntry.word isEqualToString:word]) {
+                return;
+            }
+        }
+        [self.presentedViewController dismissViewControllerAnimated:NO completion:nil];
+    }
+    
     self.lastShownWord = word;
     self.lastShownTimestamp = now;
     
