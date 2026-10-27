@@ -8,6 +8,7 @@ import os
 import sys
 import re
 import json
+import time
 import urllib.request
 import urllib.error
 
@@ -36,7 +37,6 @@ def parse_atomic_tasks(file_path):
         labels_match = re.search(r"-\s+\*\*Labels:\*\*\s*(.*)", body)
         if labels_match:
             raw_labels = labels_match.group(1)
-            # Находим слова в обратных кавычках или через запятую
             extracted = re.findall(r"`([^`]+)`", raw_labels)
             if not extracted:
                 extracted = [lbl.strip() for lbl in raw_labels.split(",") if lbl.strip()]
@@ -85,11 +85,10 @@ def main():
     tasks = parse_atomic_tasks(ATOMIC_TASKS_FILE)
     print(f"[+] Распознано атомарных задач: {len(tasks)}\n")
 
-    for i, t in enumerate(tasks, start=1):
-        labels_str = ", ".join(t["labels"]) if t["labels"] else "без лейблов"
-        print(f"{i:2d}. {t['title']} (Лейблы: {labels_str})")
-
     if dry_run:
+        for i, t in enumerate(tasks, start=1):
+            labels_str = ", ".join(t["labels"]) if t["labels"] else "без лейблов"
+            print(f"{i:2d}. {t['title']} (Лейблы: {labels_str})")
         print("\n[DRY RUN] Проверка парсера завершена. Все подпункты готовы к отправке в GitHub Issues.")
         return
 
@@ -102,8 +101,6 @@ def main():
         else:
             print("\nИспользование:")
             print("  python3 tools/upload_tasks_to_github.py owner/repo <GITHUB_TOKEN>")
-            print("  или:")
-            print("  GITHUB_TOKEN=ghp_xxx python3 tools/upload_tasks_to_github.py owner/repo")
             sys.exit(1)
 
     if not token:
@@ -111,18 +108,21 @@ def main():
             token = args[1]
         else:
             print("\n[-] Ошибка: Не задан токен доступа к GitHub.")
-            print("Создайте токен: GitHub -> Settings -> Developer Settings -> Personal access tokens (classic) с правами 'repo'.")
             sys.exit(1)
 
     print(f"\n[*] Начинаем отправку всех {len(tasks)} атомарных задач в GitHub Issues репозитория {repo}...")
     created_count = 0
-    for t in tasks:
+    for i, t in enumerate(tasks, start=1):
+        print(f"[{i:2d}/{len(tasks)}] Создание: {t['title']}...")
         issue_url = create_issue(repo, token, t['title'], t['body'], t['labels'])
         if issue_url:
-            print(f"    [OK] Создано: {issue_url}")
+            print(f"    -> [OK] {issue_url}")
             created_count += 1
         else:
-            print(f"    [FAIL] Не удалось создать {t['id']}")
+            print(f"    -> [FAIL] {t['id']}")
+        
+        # Небольшая задержка, чтобы GitHub API не ругался на rate limiting
+        time.sleep(0.4)
 
     print(f"\n[OK] Завершено! Успешно создано {created_count} из {len(tasks)} задач в GitHub Issues.")
 
