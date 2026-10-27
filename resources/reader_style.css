@@ -1,0 +1,75 @@
+/*
+ * RetroReader CSS стили верстки страниц книги для iPad 2 (iOS 9.3.5)
+ * Реализует горизонтальную колончатую верстку (CSS Multi-Column) без тяжелых JS-библиотек.
+ */
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #F8F5EE; /* Мягкий бумажный фон для комфортного чтения */
+    color: #222222;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+body {
+    box-sizing: border-box;
+}
+
+#book-container {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 40px 50px 30px 50px;
+    -webkit-column-width: 924px;
+    -webkit-column-gap: 100px;
+    -webkit-column-fill: auto;
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 20px;
+    line-height: 1.6;
+    text-align: justify;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none; /* Отключаем стандартное синее выделение iOS */
+}
+
+h1, h2, h3 {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #111111;
+    text-align: center;
+    margin-top: 15px;
+    margin-bottom: 20px;
+    -webkit-column-break-after: avoid;
+    break-after: avoid;
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+h2 {
+    font-size: 22px;
+    font-weight: normal;
+    font-style: italic;
+    color: #555555;
+}
+
+p {
+    margin: 0 0 16px 0;
+    text-indent: 28px;
+}
+
+/* Первый параграф главы без отступа */
+h1 + p, h2 + p {
+    text-indent: 0;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px auto;
+}
