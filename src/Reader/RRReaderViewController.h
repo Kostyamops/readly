@@ -1,7 +1,7 @@
 #import <UIKit/UIKit.h>
 #import "RRBookModel.h"
 
-@interface RRReaderViewController : UIViewController <UIWebViewDelegate, UIPopoverPresentationControllerDelegate>
+@interface RRReaderViewController : UIViewController <UIWebViewDelegate, UIPopoverPresentationControllerDelegate, UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) RRBookModel *book;
 @property (nonatomic, assign) NSInteger currentChapterIndex;
