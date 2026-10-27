@@ -45,7 +45,8 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    self.view.backgroundColor = [UIColor colorWithRed:0.97 green:0.96 blue:0.93 alpha:1.0];
+    RRReaderSettings *settings = [RRReaderSettings sharedSettings];
+    self.view.backgroundColor = [settings backgroundColorForTheme];
     
     // 1. Полноэкранный UIWebView
     self.webView = [[UIWebView alloc] initWithFrame:self.view.bounds];
@@ -97,7 +98,25 @@
     self.headerBar.backgroundColor = [UIColor colorWithWhite:0.96 alpha:0.92];
     self.headerBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleBottomMargin;
     
-    self.lblBookTitle = [[UILabel alloc] initWithFrame:CGRectMake(20, 10, screenW - 40, 24)];
+    // Кнопка возврата на книжную полку
+    UIButton *btnBack = [UIButton buttonWithType:UIButtonTypeSystem];
+    btnBack.frame = CGRectMake(10, 5, 80, 30);
+    [btnBack setTitle:@"← Полка" forState:UIControlStateNormal];
+    btnBack.titleLabel.font = [UIFont systemFontOfSize:15.0 weight:UIFontWeightMedium];
+    [btnBack addTarget:self action:@selector(handleBackToShelf) forControlEvents:UIControlEventTouchUpInside];
+    [self.headerBar addSubview:btnBack];
+    
+    // Кнопка настроек шрифта
+    UIButton *btnSettings = [UIButton buttonWithType:UIButtonTypeSystem];
+    btnSettings.frame = CGRectMake(screenW - 55, 5, 45, 30);
+    btnSettings.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
+    [btnSettings setTitle:@"Aa" forState:UIControlStateNormal];
+    btnSettings.titleLabel.font = [UIFont boldSystemFontOfSize:17.0];
+    [btnSettings addTarget:self action:@selector(handleSettingsTap:) forControlEvents:UIControlEventTouchUpInside];
+    [self.headerBar addSubview:btnSettings];
+    
+    self.lblBookTitle = [[UILabel alloc] initWithFrame:CGRectMake(95, 10, screenW - 160, 24)];
+    self.lblBookTitle.autoresizingMask = UIViewAutoresizingFlexibleWidth;
     self.lblBookTitle.font = [UIFont systemFontOfSize:14.0];
     self.lblBookTitle.textColor = [UIColor colorWithWhite:0.3 alpha:1.0];
     self.lblBookTitle.textAlignment = NSTextAlignmentCenter;
@@ -176,10 +195,52 @@
 #pragma mark - UIWebViewDelegate
 
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
+    RRReaderSettings *settings = [RRReaderSettings sharedSettings];
+    NSString *jsApply = [NSString stringWithFormat:@"if (window.RRApplySettings) { window.RRApplySettings(%ld, '%@', '%@'); }", (long)settings.fontSize, settings.fontFamily, settings.themeName];
+    [self.webView stringByEvaluatingJavaScriptFromString:jsApply];
+    
     NSString *pagesStr = [self.webView stringByEvaluatingJavaScriptFromString:@"window.RRGetTotalPages ? window.RRGetTotalPages() : 1;"];
     NSInteger pages = [pagesStr integerValue];
     self.totalPagesInChapter = pages > 0 ? pages : 1;
     [self updatePageDisplay];
+}
+
+- (void)handleBackToShelf {
+    if (self.navigationController) {
+        [self.navigationController popViewControllerAnimated:YES];
+    } else {
+        [self dismissViewControllerAnimated:YES completion:nil];
+    }
+}
+
+- (void)handleSettingsTap:(UIButton *)sender {
+    RRSettingsViewController *settingsVC = [[RRSettingsViewController alloc] init];
+    settingsVC.delegate = self;
+    settingsVC.modalPresentationStyle = UIModalPresentationPopover;
+    
+    UIPopoverPresentationController *popPresenter = settingsVC.popoverPresentationController;
+    popPresenter.delegate = self;
+    popPresenter.sourceView = sender;
+    popPresenter.sourceRect = sender.bounds;
+    popPresenter.permittedArrowDirections = UIPopoverArrowDirectionUp;
+    
+    [self presentViewController:settingsVC animated:YES completion:nil];
+}
+
+- (void)settingsViewControllerDidChangeSettings:(RRReaderSettings *)settings {
+    self.view.backgroundColor = [settings backgroundColorForTheme];
+    NSString *js = [NSString stringWithFormat:@"if (window.RRApplySettings) { window.RRApplySettings(%ld, '%@', '%@'); }", (long)settings.fontSize, settings.fontFamily, settings.themeName];
+    NSString *totalPagesStr = [self.webView stringByEvaluatingJavaScriptFromString:js];
+    NSInteger pages = [totalPagesStr integerValue];
+    if (pages > 0) {
+        self.totalPagesInChapter = pages;
+        if (self.currentPageIndex >= self.totalPagesInChapter) {
+            self.currentPageIndex = self.totalPagesInChapter - 1;
+        }
+        [self scrollToCurrentPage];
+    } else {
+        [self updatePageDisplay];
+    }
 }
 
 - (BOOL)webView:(UIWebView *)webView

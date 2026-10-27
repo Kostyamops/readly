@@ -154,6 +154,8 @@ class TestMilestone1(unittest.TestCase):
             "-I", os.path.join(PROJECT_ROOT, "src", "Epub"),
             "-I", os.path.join(PROJECT_ROOT, "src", "Reader"),
             "-I", os.path.join(PROJECT_ROOT, "src", "Popover"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Storage"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Library"),
             app_del_m
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)

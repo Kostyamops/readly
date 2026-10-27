@@ -154,4 +154,40 @@
         var pageWidth = window.innerWidth || 1024;
         window.scrollTo(pageIndex * pageWidth, 0);
     };
+
+    window.RRSetFontSize = function(sizePx) {
+        var container = document.getElementById('book-container') || document.body;
+        container.style.fontSize = sizePx + 'px';
+        return window.RRGetTotalPages();
+    };
+
+    window.RRSetFontFamily = function(fontFamily) {
+        var container = document.getElementById('book-container') || document.body;
+        container.style.fontFamily = fontFamily + ', serif';
+    };
+
+    window.RRSetTheme = function(themeName) {
+        var bg = '#f4ecd8';
+        var fg = '#3c2c1c';
+        if (themeName === 'light') {
+            bg = '#fbf8f1';
+            fg = '#1a1a1a';
+        } else if (themeName === 'night') {
+            bg = '#1e1e1e';
+            fg = '#b8b8b8';
+        }
+        document.body.style.backgroundColor = bg;
+        document.body.style.color = fg;
+        var container = document.getElementById('book-container');
+        if (container) {
+            container.style.color = fg;
+        }
+    };
+
+    window.RRApplySettings = function(fontSize, fontFamily, themeName) {
+        if (fontSize) window.RRSetFontSize(fontSize);
+        if (fontFamily) window.RRSetFontFamily(fontFamily);
+        if (themeName) window.RRSetTheme(themeName);
+        return window.RRGetTotalPages();
+    };
 })();

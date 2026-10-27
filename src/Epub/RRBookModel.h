@@ -5,6 +5,8 @@
 
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, copy) NSString *author;
+@property (nonatomic, copy) NSString *epubFilePath;
+@property (nonatomic, copy) NSString *coverImagePath;
 @property (nonatomic, copy) NSString *baseFolderPath;
 @property (nonatomic, copy) NSString *opfFolderPath;
 @property (nonatomic, strong) NSArray<RRChapterModel *> *chapters;

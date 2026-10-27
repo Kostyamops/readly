@@ -676,3 +676,77 @@
 - **Выходные данные:** Замер Resident Memory через Xcode Instruments или top/ps на планшете.
 - **DoD:** Потребление оперативной памяти процесса находится в пределах 35–55 МБ.
 - **Labels:** `milestone:m6-release`, `area:qa`, `level:atomic`
+
+---
+
+## MILESTONE 7: Кастомные EPUB, Библиотека и Кастомизация ридера
+
+### [M7-TASK-7.1.1.1] Регистрация Document Types и UTI для EPUB в Info.plist
+- **Зачем:** Включение системной поддержки открытия .epub файлов из Safari, AirDrop, мессенджеров («Открыть в...») и через iTunes File Sharing по кабелю.
+- **Входные данные:** `resources/Info.plist`.
+- **Выходные данные:** Ключи `CFBundleDocumentTypes`, `UTImportedTypeDeclarations`, `UIFileSharingEnabled = YES`, `LSSupportsOpeningDocumentsInPlace = NO`.
+- **DoD:** Система распознает файлы с расширением .epub как принадлежащие RetroReader; папка документов видна в iTunes.
+- **Labels:** `milestone:m7-features`, `area:config`, `level:atomic`
+
+---
+
+### [M7-TASK-7.1.1.2] Обработка входящих EPUB-файлов и URL в AppDelegate
+- **Зачем:** Перехват входящих файлов, отправленных через AirDrop, почту или Safari, и перемещение их в постоянное хранилище.
+- **Входные данные:** Метод `application:openURL:options:` в `AppDelegate.m`.
+- **Выходные данные:** Импорт файла из каталога Inbox в постоянное хранилище `Documents/Books`.
+- **DoD:** При открытии внешнего .epub файла приложение сохраняет его и обновляет библиотеку.
+- **Labels:** `milestone:m7-features`, `area:core`, `level:atomic`
+
+---
+
+### [M7-TASK-7.1.1.3] Менеджер хранилища книг RRBookStorageManager
+- **Зачем:** Изолированное управление каталогами книг, кэшами распакованных глав и метаданными.
+- **Входные данные:** `Documents/Books` и встроенный `sample.epub`.
+- **Выходные данные:** Класс `RRBookStorageManager` с методами `loadAllBooks`, `importEpubFromURL:`, `deleteBook:`.
+- **DoD:** Корректный поиск всех доступных .epub в документах и бандле, автосоздание папки книг и очистка кэша.
+- **Labels:** `milestone:m7-features`, `area:storage`, `level:atomic`
+
+---
+
+### [M7-TASK-7.2.1.1] Экран книжной полки RRBookShelfViewController
+- **Зачем:** Удобный графический интерфейс со списком доступных книг (обложка, название, автор, количество глав).
+- **Входные данные:** Список моделей `RRBookModel` от `RRBookStorageManager`.
+- **Выходные данные:** Класс `RRBookShelfViewController` с табличным/сеточным представлением и поддержкой удаления книг.
+- **DoD:** Отображение всех доступных книг, возможность выбора книги для чтения и удаления ненужных книг.
+- **Labels:** `milestone:m7-features`, `area:ui`, `level:atomic`
+
+---
+
+### [M7-TASK-7.2.1.2] Интеграция навигации Библиотека <-> Читалка
+- **Зачем:** Переход из полки в читалку и обратно по кнопке в верхней панели ридера.
+- **Входные данные:** `UINavigationController`, кнопка «← Полка» в `RRReaderViewController`.
+- **Выходные данные:** Навигационный стек в `AppDelegate.m`, плавный переход и выгрузка памяти предыдущей книги.
+- **DoD:** Тап по книге на полке открывает ридер; тап «← Полка» в ридере возвращает на книжную полку.
+- **Labels:** `milestone:m7-features`, `area:ui`, `level:atomic`
+
+---
+
+### [M7-TASK-7.3.1.1] Модель настроек читателя RRReaderSettings
+- **Зачем:** Хранение пользовательских настроек (размер шрифта, гарнитура, цветовая тема) в `NSUserDefaults`.
+- **Входные данные:** `NSUserDefaults`.
+- **Выходные данные:** Класс `RRReaderSettings` с сохранением параметров `fontSize`, `fontFamily`, `theme`.
+- **DoD:** Настройки сохраняются между запусками приложения и применяются по умолчанию.
+- **Labels:** `milestone:m7-features`, `area:core`, `level:atomic`
+
+---
+
+### [M7-TASK-7.3.1.2] Всплывающее меню настроек RRSettingsViewController
+- **Зачем:** Удобный всплывающий поповер с кнопками регулировки размера шрифта (A-/A+), выбора гарнитуры и цветовой темы.
+- **Входные данные:** Кнопка «Aa» в панели ридера.
+- **Выходные данные:** Класс `RRSettingsViewController` в режиме `UIModalPresentationPopover`.
+- **DoD:** Пользователь может интерактивно менять размер шрифта, тему (Светлая, Сепия, Ночь) и гарнитуру.
+- **Labels:** `milestone:m7-features`, `area:ui`, `level:atomic`
+
+---
+
+### [M7-TASK-7.3.1.3] Динамическое обновление стилей в DOM через JS Bridge
+- **Зачем:** Мгновенное применение нового размера шрифта, темы или гарнитуры без перезагрузки всей страницы.
+- **Входные данные:** Функции `window.RRApplySettings`, `window.RRSetFontSize`, `window.RRSetTheme` в `reader_bridge.js`.
+- **Выходные данные:** Обновление стилей `#book-container` и пересчет пагинации `RRGetTotalPages`.
+- **DoD:** При изменении шрифта или темы текст мгновенно перерисовывается без мерцания и белого экрана.
+- **Labels:** `milestone:m7-features`, `area:web`, `level:atomic`

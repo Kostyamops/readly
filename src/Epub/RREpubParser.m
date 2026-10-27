@@ -183,9 +183,24 @@ didStartElement:(NSString *)elementName
     RRBookModel *book = [[RRBookModel alloc] init];
     book.title = opfParser.title ?: @"Untitled Book";
     book.author = opfParser.author ?: @"Unknown Author";
+    book.epubFilePath = epubFilePath;
     book.baseFolderPath = destDir;
     book.opfFolderPath = opfFolder;
     book.chapters = chapters;
+    
+    // Поиск обложки книги в manifest
+    for (NSString *key in opfParser.manifest) {
+        NSString *val = opfParser.manifest[key];
+        NSString *lowerKey = [key lowercaseString];
+        NSString *lowerVal = [val lowercaseString];
+        if ([lowerKey rangeOfString:@"cover"].location != NSNotFound ||
+            [lowerVal rangeOfString:@"cover"].location != NSNotFound) {
+            if ([lowerVal hasSuffix:@".jpg"] || [lowerVal hasSuffix:@".jpeg"] || [lowerVal hasSuffix:@".png"]) {
+                book.coverImagePath = [opfFolder stringByAppendingPathComponent:val];
+                break;
+            }
+        }
+    }
     
     return book;
 }
