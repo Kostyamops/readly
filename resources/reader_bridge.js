@@ -1,0 +1,53 @@
+/**
+ * RetroReader JavaScript Bridge для UIWebView на iOS 9.3.5
+ * 1. Отслеживает тапы по словам через caretRangeFromPoint.
+ * 2. Вычисляет координаты слова на экране iPad.
+ * 3. Отправляет событие в Objective-C через кастомный URI-схем reader-bridge://wordTap.
+ * 4. Управляет горизонтальной пагинацией страниц.
+ */
+
+(function() {
+    if (window.RRBridgeInitialized) return;
+    window.RRBridgeInitialized = true;
+
+    var PUNCT_REGEX = /^[.,\/#!$%\^&\*;:{}=\-_`~()"'“”‘’«»—…]+|[.,\/#!$%\^&\*;:{}=\-_`~()"'“”‘’«»—…]+$/g;
+
+    document.addEventListener('click', function(e) {
+        var range = null;
+        if (document.caretRangeFromPoint) {
+            range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        }
+        if (!range) return;
+
+        range.expand('word');
+        var rawText = range.toString().trim();
+        if (!rawText || rawText.length === 0) return;
+
+        var cleanWord = rawText.replace(PUNCT_REGEX, "");
+        if (cleanWord.length === 0) return;
+
+        var rect = range.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        var bridgeUrl = 'reader-bridge://wordTap?' +
+                        'word=' + encodeURIComponent(cleanWord) +
+                        '&x=' + Math.round(rect.left) +
+                        '&y=' + Math.round(rect.top) +
+                        '&w=' + Math.round(rect.width) +
+                        '&h=' + Math.round(rect.height);
+
+        window.location.href = bridgeUrl;
+    }, false);
+
+    window.RRGetTotalPages = function() {
+        var container = document.getElementById('book-container') || document.body;
+        var totalWidth = container.scrollWidth;
+        var pageWidth = window.innerWidth || 1024;
+        return Math.max(1, Math.ceil(totalWidth / pageWidth));
+    };
+
+    window.RRScrollToPage = function(pageIndex) {
+        var pageWidth = window.innerWidth || 1024;
+        window.scrollTo(pageIndex * pageWidth, 0);
+    };
+})();

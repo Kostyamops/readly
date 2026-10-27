@@ -13,11 +13,12 @@ RetroReader_FILES = \
     src/Epub/RRZipExtractor.m \
     src/Epub/RRChapterModel.m \
     src/Epub/RRBookModel.m \
-    src/Epub/RREpubParser.m
+    src/Epub/RREpubParser.m \
+    src/Reader/RRReaderViewController.m
 
 RetroReader_FRAMEWORKS = UIKit Foundation CoreGraphics
 RetroReader_LIBRARIES = sqlite3 z
-RetroReader_CFLAGS = -fobjc-arc -Isrc/Core -Isrc/Dictionary -Isrc/Epub
+RetroReader_CFLAGS = -fobjc-arc -Isrc/Core -Isrc/Dictionary -Isrc/Epub -Isrc/Reader
 
 RetroReader_RESOURCE_DIRS = resources
 
