@@ -77,6 +77,7 @@ class TestMilestone4(unittest.TestCase):
             "-I", os.path.join(PROJECT_ROOT, "src", "Dictionary"),
             "-I", os.path.join(PROJECT_ROOT, "src", "Epub"),
             "-I", os.path.join(PROJECT_ROOT, "src", "Reader"),
+            "-I", os.path.join(PROJECT_ROOT, "src", "Popover"),
             m_path
         ]
         res = subprocess.run(cmd, capture_output=True, text=True)
