@@ -22,10 +22,11 @@ jobs:
         run: |
           brew install ldid dpkg
 
-      - name: Set up Theos and mock SDK
+      - name: Set up Theos and iOS SDKs
         run: |
           git clone --recursive https://github.com/theos/theos.git ~/theos
-          mkdir -p ~/theos/sdks/iPhoneOS9.3.sdk
+          mkdir -p ~/theos/sdks
+          curl -fsSL https://github.com/theos/sdks/archive/master.tar.gz | tar -xz -C ~/theos/sdks --strip-components=1
 
       - name: Run Milestone 1 TDD Test Suite
         run: |
