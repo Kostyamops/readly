@@ -9,11 +9,15 @@ RetroReader_FILES = \
     src/main.m \
     src/Core/AppDelegate.m \
     src/Dictionary/RRWordEntry.m \
-    src/Dictionary/RRDictionaryService.m
+    src/Dictionary/RRDictionaryService.m \
+    src/Epub/RRZipExtractor.m \
+    src/Epub/RRChapterModel.m \
+    src/Epub/RRBookModel.m \
+    src/Epub/RREpubParser.m
 
 RetroReader_FRAMEWORKS = UIKit Foundation CoreGraphics
 RetroReader_LIBRARIES = sqlite3 z
-RetroReader_CFLAGS = -fobjc-arc -Isrc/Core -Isrc/Dictionary
+RetroReader_CFLAGS = -fobjc-arc -Isrc/Core -Isrc/Dictionary -Isrc/Epub
 
 RetroReader_RESOURCE_DIRS = resources
 
